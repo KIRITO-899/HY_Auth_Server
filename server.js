@@ -4,7 +4,7 @@ const connectDB = require('./config/database');
 const authRoutes = require('./routes/auth');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 
 // Connect to MongoDB
 connectDB();
@@ -12,12 +12,19 @@ connectDB();
 // Middleware
 app.use(express.json());
 
+// Serve static files (favicon, landing page)
+app.use(express.static('public'));
+
 // Routes
 app.use('/api', authRoutes);
 
-// Health check route
-app.get('/', (req, res) => {
-  res.json({ message: 'Auth API is running!' });
+// API health check route
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    message: 'Auth API is running!',
+    status: 'healthy',
+    timestamp: new Date().toISOString()
+  });
 });
 
 // Error handling middleware
