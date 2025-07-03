@@ -1,5 +1,7 @@
 require('dotenv').config();
 const express = require('express');
+const helmet = require('helmet');
+const cors = require('cors');
 const connectDB = require('./config/database');
 const authRoutes = require('./routes/auth');
 
@@ -9,13 +11,21 @@ const PORT = process.env.PORT || 3001;
 // Connect to MongoDB
 connectDB();
 
-// Middleware
+// --- Middleware ---
+
+// Add security headers
+app.use(helmet());
+
+// Enable Cross-Origin Resource Sharing
+app.use(cors());
+
+// Parse JSON bodies
 app.use(express.json());
 
 // Serve static files (favicon, landing page)
 app.use(express.static('public'));
 
-// Routes
+// --- Routes ---
 app.use('/api', authRoutes);
 
 // API health check route
@@ -27,20 +37,29 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({
-    success: false,
-    message: 'Something went wrong!'
-  });
-});
+// --- Error Handling ---
 
-// 404 handler
-app.use('*', (req, res) => {
+// 404 handler for routes that don't exist
+// This must be after all other routes
+app.use((req, res, next) => {
   res.status(404).json({
     success: false,
     message: 'Route not found'
+  });
+});
+
+// Centralized error handling middleware
+// This must be the last middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  const statusCode = err.statusCode || 500;
+  const message = err.message || 'Something went wrong!';
+
+  res.status(statusCode).json({
+    success: false,
+    message,
+    // Only include the error stack in development for easier debugging
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
   });
 });
 
