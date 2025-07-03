@@ -29,12 +29,34 @@ app.use(express.static('public'));
 app.use('/api', authRoutes);
 
 // API health check route
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    message: 'Auth API is running!',
+app.get('/api/health', async (req, res) => {
+  const health = {
     status: 'healthy',
-    timestamp: new Date().toISOString()
-  });
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    memory: process.memoryUsage(),
+    environment: process.env.NODE_ENV || 'development'
+  };
+
+  try {
+    // Check database connection
+    const dbState = require('mongoose').connection.readyState;
+    health.database = {
+      status: dbState === 1 ? 'connected' : 'disconnected',
+      state: dbState
+    };
+    
+    if (dbState !== 1) {
+      health.status = 'unhealthy';
+      return res.status(503).json(health);
+    }
+  } catch (error) {
+    health.status = 'unhealthy';
+    health.database = { status: 'error', error: error.message };
+    return res.status(503).json(health);
+  }
+
+  res.json(health);
 });
 
 // --- Error Handling ---
